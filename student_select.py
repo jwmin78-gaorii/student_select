@@ -54,33 +54,43 @@ if st.button("🎲 학생 뽑기 시작!"):
     w_list = list(winner)
     stop_order = random.sample([0, 1, 2], 3)
     
-    # [1단계] 감속 구간 (30번 반복하면서 속도가 서서히 줄어듦)
-    for i in range(30):
-        # 뒤의 1.5를 조절하면 멈추기 전 감속 체감이 더 커집니다.
-        delay = 0.02 + (i / 30) ** 2 * 1.5 
+    # [1단계] 전체 회전 (짧고 굵게, 15번만)
+    for _ in range(15):
         slot_placeholder.markdown(render_slots([random.choice(chars) for _ in range(3)], rolling_indices=[0,1,2]), unsafe_allow_html=True)
-        time.sleep(delay)
+        time.sleep(0.05)
 
-    # [2단계] 하나씩 멈춤 (오버슈팅 + 최종 확정)
+    # [2단계] 하나씩 멈춤 (감속 로직 포함)
     current_display = ["?", "?", "?"]
     fixed_indices = []
     
     for i in range(3):
         idx = stop_order[i]
         
-        # 멈추기 직전 낚시질 (0.3초간 랜덤 글자 노출)
-        temp_fishing = current_display[:]
-        temp_fishing[idx] = random.choice(chars)
-        rolling_others = [j for j in range(3) if j not in fixed_indices and j != idx]
-        slot_placeholder.markdown(render_slots(temp_fishing, rolling_indices=rolling_others + [idx], fixed_indices=fixed_indices), unsafe_allow_html=True)
-        time.sleep(0.3)
+        # 멈추기 직전: 속도를 서서히 줄여나가며(0.1 -> 0.2 -> 0.4초) 멈칫하게 함
+        for slow_down in [0.1, 0.2, 0.4]:
+            temp = current_display[:]
+            temp[idx] = random.choice(chars)
+            # 나머지 칸은 여전히 도는 중
+            rolling = [j for j in range(3) if j not in fixed_indices and j != idx]
+            slot_placeholder.markdown(render_slots(temp, rolling_indices=rolling, fixed_indices=fixed_indices), unsafe_allow_html=True)
+            time.sleep(slow_down)
         
-        # 확정 (탁!)
+        # 글자 확정
         current_display[idx] = w_list[idx]
         fixed_indices.append(idx)
-        slot_placeholder.markdown(render_slots(current_display, rolling_indices=rolling_others, fixed_indices=fixed_indices), unsafe_allow_html=True)
         
-        if i < 2: time.sleep(0.6) # 다음 글자 넘어가기 전 대기
+        # 하나 멈춘 후 1.5초간 긴장감 유지 (나머지 칸은 계속 돔)
+        if i < 2:
+            start_wait = time.time()
+            while time.time() - start_wait < 1.5:
+                temp = current_display[:]
+                for j in range(3):
+                    if j not in fixed_indices:
+                        temp[j] = random.choice(chars)
+                render_slots(temp, rolling_indices=[j for j in range(3) if j not in fixed_indices], fixed_indices=fixed_indices)
+                time.sleep(0.1)
+        else:
+            render_slots(current_display, fixed_indices=fixed_indices)
 
     st.balloons()
     st.success(f"🎊 당첨자: {winner} !! 🎊")
