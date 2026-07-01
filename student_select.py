@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import random
 import time
+import math
 
 SHEET_ID = "1la5w_VJ96KPik7hcATR76RNflM-7EOF2vL87jBsXUVM"
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&gid=0"
@@ -55,39 +56,33 @@ if st.button("🎲 학생 뽑기 시작!"):
     w_list = list(winner)
     stop_order = random.sample([0, 1, 2], 3)
     
-    # [1단계] 초고속 회전 (1초간)
-    for _ in range(30):
-        slot_placeholder.markdown(render_slots([random.choice(chars) for _ in range(3)], rolling_indices=[0,1,2]), unsafe_allow_html=True)
-        time.sleep(0.02)
+    # [가속도 곡선]
+    # 총 40번 회전하며 속도를 0.02초에서 0.5초까지 서서히 늘림
+    for i in range(40):
+        # 사인 함수를 이용해 회전 속도가 서서히 줄어드는 곡선을 만듭니다.
+        progress = i / 40
+        delay = 0.02 + (progress ** 2) * 0.5 
         
-    # [2단계] 서서히 감속 (가속도 적용)
-    # 점점 느려지는 속도 배열
-    deceleration = [0.05, 0.08, 0.12, 0.18, 0.25]
-    for d in deceleration:
         slot_placeholder.markdown(render_slots([random.choice(chars) for _ in range(3)], rolling_indices=[0,1,2]), unsafe_allow_html=True)
-        time.sleep(d)
+        time.sleep(delay)
 
-    # [3단계] 순차 정지 (멈칫+결정)
+    # [멈춤 단계]
     current_display = ["?", "?", "?"]
     fixed_indices = []
     
     for i in range(3):
         idx = stop_order[i]
         
-        # 멈추기 직전 멈칫 (한두번 살짝 굴러감)
-        bounce_speeds = [0.3, 0.5] 
-        for b in bounce_speeds:
-            temp = current_display[:]
-            temp[idx] = random.choice(chars)
-            slot_placeholder.markdown(render_slots(temp, rolling_indices=[j for j in range(3) if j not in fixed_indices], fixed_indices=fixed_indices), unsafe_allow_html=True)
-            time.sleep(b)
+        # 마지막 정지 시 덜컹거림
+        temp = current_display[:]
+        temp[idx] = w_list[idx]
+        slot_placeholder.markdown(render_slots(temp, rolling_indices=[j for j in range(3) if j not in fixed_indices and j != idx], fixed_indices=fixed_indices), unsafe_allow_html=True)
+        time.sleep(0.6) # 탁! 하고 멈추는 쾌감
         
-        # 글자 확정 (탁!)
-        current_display[idx] = w_list[idx]
         fixed_indices.append(idx)
-        slot_placeholder.markdown(render_slots(current_display, rolling_indices=[j for j in range(3) if j not in fixed_indices], fixed_indices=fixed_indices), unsafe_allow_html=True)
+        current_display[idx] = w_list[idx]
         
-        if i < 2: time.sleep(0.5)
+        if i < 2: time.sleep(0.4)
 
     st.balloons()
     st.success(f"🎊 당첨자: {winner} !! 🎊")
