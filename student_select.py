@@ -59,7 +59,7 @@ if st.button("🎲 학생 뽑기 시작!"):
             slots[i].markdown(f'<div class="slot-box slot-fixed">{w_list[i]}</div>', unsafe_allow_html=True)
             
    	    # [이 부분] 이 정지 후 다음 칸이 돌기 전 대기하는 시간을 늘리세요
-            time.sleep(1.0)  # 0.5를 1.5나 2.0으로 변경
+            time.sleep(2.5)  # 0.5를 1.5나 2.0으로 변경
 
             # 다음 정지 전까지 나머지 칸들은 계속 돌기
             if i < 2:
