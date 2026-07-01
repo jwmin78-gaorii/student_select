@@ -10,6 +10,7 @@ st.set_page_config(page_title="강의실 리얼 슬롯", layout="centered")
 
 st.markdown("""
     <style>
+    .header-box { text-align: center; color: #FFD700; margin-bottom: 20px; }
     .slot-container { display: flex; justify-content: center; gap: 15px; margin-bottom: 30px; }
     .slot-box { background-color: #1a1a1a; border: 5px solid #FFD700; border-radius: 15px; 
                 font-size: 60px; font-weight: bold; text-align: center; padding: 20px; 
@@ -29,10 +30,9 @@ def get_student_list():
 
 if 'students' not in st.session_state: st.session_state.students = get_student_list()
 
-st.markdown("<h1 style='text-align: center; color: #FFD700;'>🎰 강의실 행운의 슬롯</h1>", unsafe_allow_html=True)
-slot_placeholder = st.empty()
+st.markdown("<div class='header-box'><h1>🎰 강의실 행운의 슬롯</h1></div>", unsafe_allow_html=True)
 
-def render_slots(current_display, rolling_indices=None, fixed_indices=None):
+def render_slots(display_list, rolling_indices=None, fixed_indices=None):
     rolling = rolling_indices if rolling_indices else []
     fixed = fixed_indices if fixed_indices else []
     html = '<div class="slot-container">'
@@ -40,11 +40,13 @@ def render_slots(current_display, rolling_indices=None, fixed_indices=None):
         cls = "slot-box"
         if i in fixed: cls += " slot-fixed"
         elif i in rolling: cls += " slot-rolling"
-        html += f'<div class="{cls}">{current_display[i]}</div>'
+        html += f'<div class="{cls}">{display_list[i]}</div>'
     html += '</div>'
-    slot_placeholder.markdown(html, unsafe_allow_html=True)
+    return html
 
-render_slots(["?", "?", "?"], rolling_indices=[])
+slot_placeholder = st.empty()
+slot_placeholder.markdown(render_slots(["?", "?", "?"]), unsafe_allow_html=True)
+
 chars = "김이박최정강조윤장임한오서신권황안송전홍박배백문허유남류심양"
 
 if st.button("🎲 학생 뽑기 시작!"):
@@ -52,32 +54,33 @@ if st.button("🎲 학생 뽑기 시작!"):
     w_list = list(winner)
     stop_order = random.sample([0, 1, 2], 3)
     
-    # [1단계] 감속 구간 (80단계, 속도가 점진적으로 느려짐)
-    for i in range(80):
-        delay = 0.02 + (i / 80) ** 2 * 0.4
-        render_slots([random.choice(chars) for _ in range(3)], rolling_indices=[0,1,2])
+    # [1단계] 감속 구간 (30번 반복하면서 속도가 서서히 줄어듦)
+    for i in range(30):
+        # 뒤의 1.5를 조절하면 멈추기 전 감속 체감이 더 커집니다.
+        delay = 0.02 + (i / 30) ** 2 * 1.5 
+        slot_placeholder.markdown(render_slots([random.choice(chars) for _ in range(3)], rolling_indices=[0,1,2]), unsafe_allow_html=True)
         time.sleep(delay)
 
-    # [2단계] 하나씩 멈춤 (개별 쫄깃한 시간 1.5초)
+    # [2단계] 하나씩 멈춤 (오버슈팅 + 최종 확정)
     current_display = ["?", "?", "?"]
     fixed_indices = []
     
     for i in range(3):
         idx = stop_order[i]
         
-        # 글자 확정 및 고정
+        # 멈추기 직전 낚시질 (0.3초간 랜덤 글자 노출)
+        temp_fishing = current_display[:]
+        temp_fishing[idx] = random.choice(chars)
+        rolling_others = [j for j in range(3) if j not in fixed_indices and j != idx]
+        slot_placeholder.markdown(render_slots(temp_fishing, rolling_indices=rolling_others + [idx], fixed_indices=fixed_indices), unsafe_allow_html=True)
+        time.sleep(0.3)
+        
+        # 확정 (탁!)
         current_display[idx] = w_list[idx]
         fixed_indices.append(idx)
+        slot_placeholder.markdown(render_slots(current_display, rolling_indices=rolling_others, fixed_indices=fixed_indices), unsafe_allow_html=True)
         
-        # 다음 글자 멈추기 전까지 나머지 칸들은 애니메이션 유지
-        start_wait = time.time()
-        while time.time() - start_wait < 1.5:
-            temp = current_display[:]
-            for j in range(3):
-                if j not in fixed_indices:
-                    temp[j] = random.choice(chars)
-            render_slots(temp, rolling_indices=[j for j in range(3) if j not in fixed_indices], fixed_indices=fixed_indices)
-            time.sleep(0.08)
+        if i < 2: time.sleep(0.6) # 다음 글자 넘어가기 전 대기
 
     st.balloons()
     st.success(f"🎊 당첨자: {winner} !! 🎊")
